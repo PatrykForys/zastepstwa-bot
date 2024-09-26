@@ -1,0 +1,13 @@
+{
+  "name": "discord-bot",
+  "version": "1.0.0",
+  "main": "index.mjs",
+  "scripts": {
+    "start": "node index.mjs"
+  },
+  "dependencies": {
+    "discord.js": "^14.16.2",
+    "jsdom": "^19.0.0",
+    "node-fetch": "^2.7.0"
+  }
+}
