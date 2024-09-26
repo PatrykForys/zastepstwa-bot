@@ -8,7 +8,7 @@ const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBit
 // User class storage
 const userClasses = {};
 const userChannels = {}; // Store user channel associations
-const token = "MTI4ODYwNzg3MjA0NDc2NTMzNw.GbxzCK.q_EJkWb1n9vOC9tDFRPkw084KX5NH7JOP5vAdg"; // Use environment variables for security
+const token = ""; // Use environment variables for security
 let guildId;
 let clientId;
 
