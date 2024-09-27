@@ -4,3 +4,6 @@
 
 ## Używanie
  Stwórz serwer discord i dodaj bota do serwera poprzez stronę https://patrykforys.github.io/strona-bota/
+
+ ## Strona
+  Kod strony https://github.com/PatrykForys/strona-bota
