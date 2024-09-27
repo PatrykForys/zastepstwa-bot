@@ -8,7 +8,6 @@ const userClasses = {};
 const userChannels = {}; 
 let lastSentDate = {};
 let clientId;
-const token = "MTI4ODYwNzg3MjA0NDc2NTMzNw.G7Yqs7.eDSW3jrcAp9ZRDDMe7dyjyta3Y6-ns7kOCzW2s";
 
 const classCategories = {
     1: ["1a LO-p", "1PL Tech-p", "1ME Tech-p", "1RZA Tech-p", "1a BS-p", "1b BS-p"],
@@ -228,4 +227,4 @@ client.once('ready', async () => {
     await registerCommands();
 });
 
-client.login(token);
+client.login();
