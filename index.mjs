@@ -2,14 +2,13 @@ import { Client, GatewayIntentBits, ActionRowBuilder, StringSelectMenuBuilder, E
 import fetch from 'node-fetch';
 import { JSDOM } from 'jsdom';
 
-
 const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent] });
 
-
-const userClasses = {};
-const userChannels = {};
+const userClasses = {}; 
+const userChannels = {}; 
+let lastSentDate = {};
 let clientId;
-
+const token = "MTI4ODYwNzg3MjA0NDc2NTMzNw.G7Yqs7.eDSW3jrcAp9ZRDDMe7dyjyta3Y6-ns7kOCzW2s";
 
 const classCategories = {
     1: ["1a LO-p", "1PL Tech-p", "1ME Tech-p", "1RZA Tech-p", "1a BS-p", "1b BS-p"],
@@ -18,7 +17,6 @@ const classCategories = {
     4: ["4a LO-p", "4TP Tech-p", "4TL Tech-p", "4TI Tech-p", "4PI Tech-p", "4AR Tech-p", "4ME Tech-p"],
     5: ["5TP Tech-p", "5TM Tech-p", "5TI Tech-p", "5RZ Tech-p", "5LA Tech-p"]
 };
-
 
 async function fetchSubstitutionData(day, mode) {
     try {
@@ -35,7 +33,7 @@ async function fetchSubstitutionData(day, mode) {
         const { document } = (new JSDOM(htmlData)).window;
 
         if (document.querySelector(".nosubst")) {
-            console.log('Brak zastępstw na ten dzień.');
+            // console.log('Brak zastępstw na ten dzień.');
             return [];
         }
 
@@ -49,7 +47,6 @@ async function fetchSubstitutionData(day, mode) {
         console.error('Błąd podczas pobierania danych o zastępstwach:', error);
     }
 }
-
 
 const commands = [
     {
@@ -82,7 +79,6 @@ const commands = [
     }
 ];
 
-
 const registerCommands = async () => {
     if (!clientId) {
         console.error('Client ID jest niezdefiniowany. Rejestracja komend przerwana.');
@@ -99,50 +95,59 @@ const registerCommands = async () => {
     }
 };
 
-
 const checkSubstitutions = async () => {
     const now = new Date();
     const hour = now.getHours();
+    const today = now.toISOString().slice(0, 10);
 
-    if (hour >= 20) {
+    if (hour >= 20 && hour < 23) {
         const day = new Date();
+        day.setDate(day.getDate() + 1);
         const substitutions = await fetchSubstitutionData(day, 'classes');
 
-        for (const userId in userClasses) {
-            const className = userClasses[userId];
-            const channelId = userChannels[userId];
+        client.guilds.cache.forEach(guild => {
+            if (!lastSentDate[guild.id] || lastSentDate[guild.id] !== today) {
+                for (const userId in userClasses[guild.id] || {}) {
+                    const className = userClasses[guild.id][userId];
+                    const channelId = userChannels[guild.id][userId];
 
-            if (!className || !channelId) continue;
+                    if (!className || !channelId) continue;
 
-            const filteredData = substitutions.filter(entry => entry.className === className);
+                    const filteredData = substitutions.filter(entry => entry.className === className);
 
-            if (filteredData.length > 0) {
-                let message = `Zastępstwa dla klasy **${className}** na dzisiaj:\n`;
-                filteredData.forEach(entry => {
-                    message += `${entry.rows.join('\n')}\n\n`;
-                });
+                    const channel = client.channels.cache.get(channelId);
+                    if (filteredData.length > 0) {
+                        let message = `Zastępstwa dla klasy **${className}** na dzisiaj:\n`;
+                        filteredData.forEach(entry => {
+                            message += `${entry.rows.join('\n')}\n\n`;
+                        });
 
-                const channel = client.channels.cache.get(channelId);
-                if (channel) {
-                    channel.send(message);
+                        if (channel) {
+                            channel.send(message);
+                            lastSentDate[guild.id] = today; 
+                        }
+                    } else {
+                        if (channel) {
+                            channel.send(`Brak zastępstw dla klasy ${className} na ${day.toISOString().slice(0, 10)}.`);
+                            lastSentDate[guild.id] = today; 
+                        }
+                    }
                 }
             } else {
-                console.log(`Brak zastępstw dla klasy ${className} na dzisiaj.`);
+                // console.log(`Zastępstwa dla serwera ${guild.id} już wysłane dzisiaj.`);
             }
-        }
+        });
     } else {
-        console.log('Zastępstwa sprawdzane tylko po godzinie 20:00.');
+        // console.log('Zastępstwa sprawdzane tylko między godziną 20:00 a 23:00.');
     }
 };
 
-
-setInterval(checkSubstitutions, 15 * 60 * 1000);
-
+setInterval(checkSubstitutions, 1 * 1 * 1000); // Sprawdzanie co minutę
 
 client.on(Events.InteractionCreate, async interaction => {
     if (!interaction.isCommand()) return;
 
-    const { commandName, options } = interaction;
+    const { commandName, options, guildId } = interaction;
 
     if (commandName === 'klasa') {
         const year = options.getInteger('numer_klasy');
@@ -163,9 +168,11 @@ client.on(Events.InteractionCreate, async interaction => {
         const row = new ActionRowBuilder().addComponents(selectMenu);
         await interaction.reply({ content: `Wybierz swoją klasę z ${year} roku:`, components: [row] });
 
-        userChannels[interaction.user.id] = interaction.channel.id;
+        if (!userChannels[guildId]) userChannels[guildId] = {};
+        userChannels[guildId][interaction.user.id] = interaction.channel.id;
     } else if (commandName === 'sprawdz') {
-        const className = userClasses[interaction.user.id];
+        if (!userClasses[guildId]) userClasses[guildId] = {};
+        const className = userClasses[guildId][interaction.user.id];
 
         if (!className) {
             return interaction.reply('Nie masz wybranej klasy. Użyj komendy /klasa aby ją ustawić.');
@@ -198,20 +205,21 @@ client.on(Events.InteractionCreate, async interaction => {
     }
 });
 
-
 client.on(Events.InteractionCreate, async interaction => {
     if (interaction.isSelectMenu()) {
         if (interaction.customId === 'select_class') {
             await interaction.deferUpdate();
 
             const className = interaction.values[0];
-            userClasses[interaction.user.id] = className;
+            const guildId = interaction.guildId;
+
+            if (!userClasses[guildId]) userClasses[guildId] = {};
+            userClasses[guildId][interaction.user.id] = className;
 
             await interaction.followUp({ content: `Zapamiętano klasę ${className} dla użytkownika ${interaction.user.username}.`, ephemeral: true });
         }
     }
 });
-
 
 client.once('ready', async () => {
     console.log('Bot jest online!');
@@ -220,5 +228,4 @@ client.once('ready', async () => {
     await registerCommands();
 });
 
-
-client.login();
+client.login(token);
