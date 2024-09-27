@@ -10,7 +10,7 @@ const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBit
 
 const userClasses = {};
 const userChannels = {};
-const token = process.env.TOKEN; 
+const token = "TOKEN_BOTA"; 
 let clientId;
 
 
