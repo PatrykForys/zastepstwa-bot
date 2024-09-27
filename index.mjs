@@ -2,17 +2,16 @@ import { Client, GatewayIntentBits, ActionRowBuilder, StringSelectMenuBuilder, E
 import fetch from 'node-fetch';
 import { JSDOM } from 'jsdom';
 
-// Initialize the Discord client
+
 const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent] });
 
-// User class storage
+
 const userClasses = {};
-const userChannels = {}; // Store user channel associations
-const token = "MTI4ODYwNzg3MjA0NDc2NTMzNw.GbxzCK.q_EJkWb1n9vOC9tDFRPkw084KX5NH7JOP5vAdg"; // Use environment variables for security
-let guildId;
+const userChannels = {};
+const token = "MTI4ODYwNzg3MjA0NDc2NTMzNw.G0r5h9.uDVU5aNCekZuLWgVOauZvyH0jJM2LSpk5GSpro"; 
 let clientId;
 
-// Class categories grouped by year
+
 const classCategories = {
     1: ["1a LO-p", "1PL Tech-p", "1ME Tech-p", "1RZA Tech-p", "1a BS-p", "1b BS-p"],
     2: ["2a LO-p", "2b LO-p", "2AR Tech-p", "2ME Tech-p", "2SI Tech-p", "2TL Tech-p", "2TP Tech-p", "2TZ Tech-p", "2aBS BS-p", "2bBS BS-p", "2cBS BS-p"],
@@ -21,7 +20,7 @@ const classCategories = {
     5: ["5TP Tech-p", "5TM Tech-p", "5TI Tech-p", "5RZ Tech-p", "5LA Tech-p"]
 };
 
-// Function to fetch substitution data
+
 async function fetchSubstitutionData(day, mode) {
     try {
         const response = await fetch("https://zs2ostrzeszow.edupage.org/substitution/server/viewer.js?__func=getSubstViewerDayDataHtml", {
@@ -37,11 +36,11 @@ async function fetchSubstitutionData(day, mode) {
         const { document } = (new JSDOM(htmlData)).window;
 
         if (document.querySelector(".nosubst")) {
-            console.log('Brak zastępstw na ten dzień.'); // Log if there are no substitutions
+            console.log('Brak zastępstw na ten dzień.');
             return [];
         }
 
-        // Extract substitution data
+        // Wyodrębnianie danych o zastępstwach
         let data = Array.from(document.querySelectorAll("[data-date] .section, [data-date] .print-nobreak")).map(element => ({
             className: element.querySelector(".header").textContent.trim(),
             rows: Array.from(element.querySelectorAll(".rows .row")).map(row => row.querySelector(".info").textContent.trim())
@@ -49,18 +48,18 @@ async function fetchSubstitutionData(day, mode) {
 
         return data;
     } catch (error) {
-        console.error('Error fetching substitution data:', error);
+        console.error('Błąd podczas pobierania danych o zastępstwach:', error);
     }
 }
 
-// Command definitions for slash commands
+
 const commands = [
     {
         name: 'klasa',
         description: 'Wybierz swoją klasę z lat 1-5.',
         options: [
             {
-                type: 4, // Type 4 is INTEGER for year
+                type: 4,
                 name: 'numer_klasy',
                 description: 'Numer twojej klasy (1-5)',
                 required: true,
@@ -72,7 +71,7 @@ const commands = [
         description: 'Sprawdź zastępstwa dla swojej klasy.',
         options: [
             {
-                type: 3, // Type 3 is STRING
+                type: 3,
                 name: 'data',
                 description: 'Wybierz datę: dzisiaj lub jutro',
                 required: true,
@@ -85,39 +84,37 @@ const commands = [
     }
 ];
 
-// Register commands with Discord API
+
 const registerCommands = async () => {
-    if (!guildId || !clientId) {
-        console.error('Guild ID or Client ID is undefined. Command registration aborted.');
+    if (!clientId) {
+        console.error('Client ID jest niezdefiniowany. Rejestracja komend przerwana.');
         return;
     }
 
     const rest = new REST({ version: '9' }).setToken(token);
     try {
-        console.log('Rozpoczynam rejestrację komend...');
-        await rest.put(Routes.applicationGuildCommands(clientId, guildId), { body: commands });
-        console.log('Komendy zostały zarejestrowane!');
+        console.log('Rozpoczynam rejestrację globalnych komend...');
+        await rest.put(Routes.applicationCommands(clientId), { body: commands });
+        console.log('Komendy globalne zostały zarejestrowane!');
     } catch (error) {
-        console.error('Failed to register commands:', error);
+        console.error('Nie udało się zarejestrować komend:', error);
     }
 };
 
-// Function to check substitutions and send updates to users
+
 const checkSubstitutions = async () => {
     const now = new Date();
     const hour = now.getHours();
 
-    // Only check substitutions if it's after 20:00 (8 PM)
     if (hour >= 20) {
         const day = new Date();
         const substitutions = await fetchSubstitutionData(day, 'classes');
 
-        // Check each user's channel and class
         for (const userId in userClasses) {
             const className = userClasses[userId];
             const channelId = userChannels[userId];
 
-            if (!className || !channelId) continue; // Skip if no class or channel is associated
+            if (!className || !channelId) continue;
 
             const filteredData = substitutions.filter(entry => entry.className === className);
 
@@ -136,16 +133,16 @@ const checkSubstitutions = async () => {
             }
         }
     } else {
-        console.log('Zastępstwa sprawdzane tylko po godzinie 20:00.'); // Log that it's too early
+        console.log('Zastępstwa sprawdzane tylko po godzinie 20:00.');
     }
 };
 
-// Set interval to check substitutions every 15 minutes
-setInterval(checkSubstitutions, 15 * 60 * 1000); // 15 minutes in milliseconds
 
-// Event handler for interactions
+setInterval(checkSubstitutions, 15 * 60 * 1000);
+
+
 client.on(Events.InteractionCreate, async interaction => {
-    if (!interaction.isCommand()) return; // Check if the interaction is a command
+    if (!interaction.isCommand()) return;
 
     const { commandName, options } = interaction;
 
@@ -168,7 +165,6 @@ client.on(Events.InteractionCreate, async interaction => {
         const row = new ActionRowBuilder().addComponents(selectMenu);
         await interaction.reply({ content: `Wybierz swoją klasę z ${year} roku:`, components: [row] });
 
-        // Set user channel ID for future messages
         userChannels[interaction.user.id] = interaction.channel.id;
     } else if (commandName === 'sprawdz') {
         const className = userClasses[interaction.user.id];
@@ -177,13 +173,11 @@ client.on(Events.InteractionCreate, async interaction => {
             return interaction.reply('Nie masz zapamiętanej klasy. Użyj komendy /klasa, aby ją ustawić.');
         }
 
-        // Get the date option (dzisiaj or jutro)
         const dateOption = options.getString('data');
         const day = new Date();
 
-        // Set the date based on the option
         if (dateOption === 'jutro') {
-            day.setDate(day.getDate() + 1); // Move to tomorrow
+            day.setDate(day.getDate() + 1);
         }
 
         const substitutions = await fetchSubstitutionData(day, 'classes');
@@ -206,37 +200,27 @@ client.on(Events.InteractionCreate, async interaction => {
     }
 });
 
-// Handling interaction responses for class selection
+
 client.on(Events.InteractionCreate, async interaction => {
     if (interaction.isSelectMenu()) {
         if (interaction.customId === 'select_class') {
-            await interaction.deferUpdate(); // Acknowledge the interaction
+            await interaction.deferUpdate();
 
             const className = interaction.values[0];
-            userClasses[interaction.user.id] = className; // Store user's class
+            userClasses[interaction.user.id] = className;
 
             await interaction.followUp({ content: `Zapamiętano klasę ${className} dla użytkownika ${interaction.user.username}.`, ephemeral: true });
         }
     }
 });
 
-// Log when the bot is ready
+
 client.once('ready', async () => {
     console.log('Bot jest online!');
-
-    // Fetch guild ID and client ID
-    if (client.guilds.cache.size > 0) {
-        guildId = client.guilds.cache.first().id; // Get the first guild ID
-        clientId = client.user.id; // Get client ID
-
-        console.log(`Guild ID: ${guildId}, Client ID: ${clientId}`);
-
-        // Register commands after IDs are set
-        await registerCommands();
-    } else {
-        console.error('The bot is not in any guilds. Please invite the bot to a guild.');
-    }
+    clientId = client.user.id;
+    console.log(`Client ID: ${clientId}`);
+    await registerCommands();
 });
 
-// Your bot token here
+
 client.login(token);
