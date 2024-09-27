@@ -1,8 +1,6 @@
 import { Client, GatewayIntentBits, ActionRowBuilder, StringSelectMenuBuilder, Events, REST, Routes } from 'discord.js';
 import fetch from 'node-fetch';
 import { JSDOM } from 'jsdom';
-import dotenv from 'dotenv';
-dotenv.config();
 
 
 const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent] });
@@ -10,7 +8,7 @@ const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBit
 
 const userClasses = {};
 const userChannels = {};
-const token = "TOKEN_BOTA"; 
+const token = "YOUR_BOT_TOKEN"; 
 let clientId;
 
 
