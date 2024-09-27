@@ -8,7 +8,6 @@ const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBit
 
 const userClasses = {};
 const userChannels = {};
-const token = "YOUR_BOT_TOKEN"; 
 let clientId;
 
 
@@ -222,4 +221,4 @@ client.once('ready', async () => {
 });
 
 
-client.login(token);
+client.login();
