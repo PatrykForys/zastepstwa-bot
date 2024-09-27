@@ -54,12 +54,12 @@ async function fetchSubstitutionData(day, mode) {
 const commands = [
     {
         name: 'klasa',
-        description: 'Wybierz swoją klasę z lat 1-5.',
+        description: 'Wybierz swoją klasę 1-5.',
         options: [
             {
                 type: 4,
                 name: 'numer_klasy',
-                description: 'Numer twojej klasy (1-5)',
+                description: 'twoja klasa (1-5)',
                 required: true,
             }
         ]
@@ -91,9 +91,9 @@ const registerCommands = async () => {
 
     const rest = new REST({ version: '9' }).setToken(token);
     try {
-        console.log('Rozpoczynam rejestrację globalnych komend...');
+        console.log('Rejestracja komend');
         await rest.put(Routes.applicationCommands(clientId), { body: commands });
-        console.log('Komendy globalne zostały zarejestrowane!');
+        console.log('Komendy zostały zarejestrowane');
     } catch (error) {
         console.error('Nie udało się zarejestrować komend:', error);
     }
@@ -147,14 +147,14 @@ client.on(Events.InteractionCreate, async interaction => {
     if (commandName === 'klasa') {
         const year = options.getInteger('numer_klasy');
         if (year < 1 || year > 5) {
-            return interaction.reply('Podaj numer klasy (1-5), aby uzyskać listę klas.');
+            return interaction.reply('Podaj klase (1-5)');
         }
 
         const selectedClasses = classCategories[year];
 
         const selectMenu = new StringSelectMenuBuilder()
             .setCustomId('select_class')
-            .setPlaceholder(`Wybierz swoją klasę z ${year} roku`)
+            .setPlaceholder(`Wybierz swoją klasę ${year}`)
             .addOptions(selectedClasses.map(className => ({
                 label: className,
                 value: className
@@ -168,7 +168,7 @@ client.on(Events.InteractionCreate, async interaction => {
         const className = userClasses[interaction.user.id];
 
         if (!className) {
-            return interaction.reply('Nie masz zapamiętanej klasy. Użyj komendy /klasa, aby ją ustawić.');
+            return interaction.reply('Nie masz wybranej klasy. Użyj komendy /klasa aby ją ustawić.');
         }
 
         const dateOption = options.getString('data');
@@ -189,7 +189,7 @@ client.on(Events.InteractionCreate, async interaction => {
             } else {
                 let response = filteredData.map(entry => {
                     const classDetails = entry.rows.length ? entry.rows.join('\n') : 'Brak szczegółów.';
-                    return `Szczegóły dla klasy: ${entry.className}\n${classDetails}`;
+                    return `Zastępstwa dla klasy: ${entry.className}\n${classDetails}`;
                 }).join('\n\n');
 
                 await interaction.reply(response);
