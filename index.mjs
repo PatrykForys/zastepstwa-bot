@@ -5,7 +5,7 @@ import { JSDOM } from 'jsdom';
 const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent] });
 
 const userClasses = {};
-const userChannels = {}; 
+const userChannels = {};
 let lastSentDate = {}; 
 let clientId;
 
@@ -32,7 +32,7 @@ async function fetchSubstitutionData(day, mode) {
         const { document } = (new JSDOM(htmlData)).window;
 
         if (document.querySelector(".nosubst")) {
-            console.log('Brak zastępstw na ten dzień.');
+            // console.log('Brak zastępstw na ten dzień.');
             return [];
         }
 
@@ -101,7 +101,7 @@ const checkSubstitutions = async () => {
     const today = now.toISOString().slice(0, 10);
 
     if (dayOfWeek === 0 || dayOfWeek === 6) {
-        console.log('Dziś jest sobota lub niedziela. Nie sprawdzamy zastępstw.');
+        // console.log('Dziś jest sobota lub niedziela. Nie sprawdzamy zastępstw.');
         return;
     }
 
@@ -135,25 +135,25 @@ const checkSubstitutions = async () => {
 
                         if (channel) {
                             channel.send(message);
-                            lastSentDate[guild.id] = today; // Aktualizacja daty ostatniego wysłania wiadomości dla serwera
+                            lastSentDate[guild.id] = today; 
                         }
                     } else {
                         if (channel) {
-                            channel.send(`Brak zastępstw dla klasy ${className} na dzisiaj.`);
-                            lastSentDate[guild.id] = today; // Aktualizacja daty ostatniego wysłania wiadomości dla serwera
+                            channel.send(`Brak zastępstw dla klasy ${className} na ${day.toISOString().slice(0, 10)}.`);
+                            lastSentDate[guild.id] = today; 
                         }
                     }
                 }
             } else {
-                console.log(`Zastępstwa dla serwera ${guild.id} już wysłane dzisiaj.`);
+                // console.log(`Zastępstwa dla serwera ${guild.id} już wysłane dzisiaj.`);
             }
         });
     } else {
-        console.log('Zastępstwa sprawdzane tylko między godziną 20:00 a 23:00.');
+        // console.log('Zastępstwa sprawdzane tylko między godziną 20:00 a 23:00.');
     }
 };
 
-setInterval(checkSubstitutions, 1 * 1 * 1000); // Sprawdzanie co minutę
+setInterval(checkSubstitutions, 1 * 60 * 1000); // Sprawdzanie co minutę
 
 client.on(Events.InteractionCreate, async interaction => {
     if (!interaction.isCommand()) return;
