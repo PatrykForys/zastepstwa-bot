@@ -4,9 +4,9 @@ import { JSDOM } from 'jsdom';
 
 const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent] });
 
-const userClasses = {}; // { serverId: { userId: className } }
-const userChannels = {}; // { serverId: { userId: channelId } }
-let lastSentDate = {}; // { serverId: lastSentDate }
+const userClasses = {};
+const userChannels = {}; 
+let lastSentDate = {}; 
 let clientId;
 
 const classCategories = {
