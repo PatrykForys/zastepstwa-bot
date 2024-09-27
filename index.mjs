@@ -4,9 +4,9 @@ import { JSDOM } from 'jsdom';
 
 const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent] });
 
-const userClasses = {}; 
-const userChannels = {}; 
-let lastSentDate = {};
+const userClasses = {}; // { serverId: { userId: className } }
+const userChannels = {}; // { serverId: { userId: channelId } }
+let lastSentDate = {}; // { serverId: lastSentDate }
 let clientId;
 
 const classCategories = {
@@ -32,7 +32,7 @@ async function fetchSubstitutionData(day, mode) {
         const { document } = (new JSDOM(htmlData)).window;
 
         if (document.querySelector(".nosubst")) {
-            // console.log('Brak zastępstw na ten dzień.');
+            console.log('Brak zastępstw na ten dzień.');
             return [];
         }
 
@@ -97,11 +97,23 @@ const registerCommands = async () => {
 const checkSubstitutions = async () => {
     const now = new Date();
     const hour = now.getHours();
+    const dayOfWeek = now.getDay();
     const today = now.toISOString().slice(0, 10);
+
+    if (dayOfWeek === 0 || dayOfWeek === 6) {
+        console.log('Dziś jest sobota lub niedziela. Nie sprawdzamy zastępstw.');
+        return;
+    }
 
     if (hour >= 20 && hour < 23) {
         const day = new Date();
-        day.setDate(day.getDate() + 1);
+        const dayOfWeekTomorrow = (day.getDay() + 1) % 7;
+
+        if (dayOfWeek === 5 && dayOfWeekTomorrow === 6) {
+            // console.log('Jutro jest sobota. Nie sprawdzamy zastępstw.');
+            return;
+        }
+
         const substitutions = await fetchSubstitutionData(day, 'classes');
 
         client.guilds.cache.forEach(guild => {
@@ -123,21 +135,21 @@ const checkSubstitutions = async () => {
 
                         if (channel) {
                             channel.send(message);
-                            lastSentDate[guild.id] = today; 
+                            lastSentDate[guild.id] = today; // Aktualizacja daty ostatniego wysłania wiadomości dla serwera
                         }
                     } else {
                         if (channel) {
-                            channel.send(`Brak zastępstw dla klasy ${className} na ${day.toISOString().slice(0, 10)}.`);
-                            lastSentDate[guild.id] = today; 
+                            channel.send(`Brak zastępstw dla klasy ${className} na dzisiaj.`);
+                            lastSentDate[guild.id] = today; // Aktualizacja daty ostatniego wysłania wiadomości dla serwera
                         }
                     }
                 }
             } else {
-                // console.log(`Zastępstwa dla serwera ${guild.id} już wysłane dzisiaj.`);
+                console.log(`Zastępstwa dla serwera ${guild.id} już wysłane dzisiaj.`);
             }
         });
     } else {
-        // console.log('Zastępstwa sprawdzane tylko między godziną 20:00 a 23:00.');
+        console.log('Zastępstwa sprawdzane tylko między godziną 20:00 a 23:00.');
     }
 };
 
