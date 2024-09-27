@@ -1,6 +1,8 @@
 import { Client, GatewayIntentBits, ActionRowBuilder, StringSelectMenuBuilder, Events, REST, Routes } from 'discord.js';
 import fetch from 'node-fetch';
 import { JSDOM } from 'jsdom';
+import dotenv from 'dotenv';
+dotenv.config();
 
 
 const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent] });
@@ -8,7 +10,7 @@ const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBit
 
 const userClasses = {};
 const userChannels = {};
-const token = "MTI4ODYwNzg3MjA0NDc2NTMzNw.G0r5h9.uDVU5aNCekZuLWgVOauZvyH0jJM2LSpk5GSpro"; 
+const token = process.env.TOKEN; 
 let clientId;
 
 
@@ -40,7 +42,6 @@ async function fetchSubstitutionData(day, mode) {
             return [];
         }
 
-        // Wyodrębnianie danych o zastępstwach
         let data = Array.from(document.querySelectorAll("[data-date] .section, [data-date] .print-nobreak")).map(element => ({
             className: element.querySelector(".header").textContent.trim(),
             rows: Array.from(element.querySelectorAll(".rows .row")).map(row => row.querySelector(".info").textContent.trim())
