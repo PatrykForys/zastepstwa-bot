@@ -5,10 +5,10 @@ import { JSDOM } from 'jsdom';
 const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent] });
 
 const userClasses = {};
-const userChannels = {};
+const userChannels = {}; 
 let lastSentDate = {};
 let clientId;
-
+const token = "";
 
 const classCategories = {
     1: ["1a LO-p", "1PL Tech-p", "1ME Tech-p", "1RZA Tech-p", "1a BS-p", "1b BS-p"],
@@ -44,6 +44,7 @@ async function fetchSubstitutionData(day, mode) {
         return data;
     } catch (error) {
         console.error('Błąd podczas pobierania danych o zastępstwach:', error);
+        return [];
     }
 }
 
@@ -84,8 +85,7 @@ const registerCommands = async () => {
         return;
     }
 
-    // Use the actual bot token
-    const rest = new REST({ version: '9' }).setToken(token);
+    const rest = new REST({ version: '10' }).setToken(token);
     try {
         console.log('Rejestracja komend');
         await rest.put(Routes.applicationCommands(clientId), { body: commands });
@@ -101,10 +101,19 @@ const checkSubstitutions = async () => {
     const dayOfWeek = now.getDay();
     const today = now.toISOString().slice(0, 10);
 
-    if (dayOfWeek === 0 || dayOfWeek === 6) return;
+    if (dayOfWeek === 0 || dayOfWeek === 6) {
+        return;
+    }
 
     if (hour >= 20 && hour < 23) {
         const day = new Date();
+        const dayOfWeekTomorrow = (day.getDay() + 1) % 7;
+
+        if (dayOfWeek === 5 && dayOfWeekTomorrow === 6) {
+            return;
+        }
+
+        day.setDate(day.getDate() + 1);
         const substitutions = await fetchSubstitutionData(day, 'classes');
 
         client.guilds.cache.forEach(guild => {
@@ -125,92 +134,118 @@ const checkSubstitutions = async () => {
                         });
 
                         if (channel) {
-                            channel.send(message);
-                            lastSentDate[guild.id] = today;
+                            channel.send(message)
+                                .then(() => {
+                                    lastSentDate[guild.id] = today;
+                                })
+                                .catch(error => {
+                                    console.error(`Błąd podczas wysyłania wiadomości do kanału ${channelId}:`, error);
+                                });
                         }
                     } else {
                         if (channel) {
-                            channel.send(`Brak zastępstw dla klasy ${className} na ${day.toISOString().slice(0, 10)}.`);
-                            lastSentDate[guild.id] = today;
+                            channel.send(`Brak zastępstw dla klasy ${className} na ${day.toISOString().slice(0, 10)}.`)
+                                .then(() => {
+                                    lastSentDate[guild.id] = today;
+                                })
+                                .catch(error => {
+                                    console.error(`Błąd podczas wysyłania wiadomości do kanału ${channelId}:`, error);
+                                });
                         }
                     }
                 }
+            } else {
             }
         });
+    } else {
     }
 };
 
-setInterval(checkSubstitutions, 1 * 60 * 1000);
+
+client.on('error', error => {
+    console.error('Błąd klienta Discord:', error);
+});
+
+setInterval(checkSubstitutions, 1 * 60 * 1000); 
 
 client.on(Events.InteractionCreate, async (interaction) => {
-    if (interaction.isCommand()) {
-        const { commandName, options, guildId } = interaction;
+    try {
+        if (interaction.isCommand()) {
+            const { commandName, options, guildId } = interaction;
 
-        if (commandName === 'klasa') {
-            const year = options.getInteger('numer_klasy');
-            if (year < 1 || year > 5) {
-                return interaction.reply('Podaj klasę (1-5)');
-            }
+            if (commandName === 'klasa') {
+                const year = options.getInteger('numer_klasy');
+                if (year < 1 || year > 5) {
+                    return interaction.reply({ content: 'Podaj klasę (1-5)', ephemeral: true });
+                }
 
-            const selectedClasses = classCategories[year];
+                const selectedClasses = classCategories[year];
 
-            const selectMenu = new StringSelectMenuBuilder()
-                .setCustomId('select_class')
-                .setPlaceholder(`Wybierz swoją klasę ${year}`)
-                .addOptions(selectedClasses.map(className => ({
-                    label: className,
-                    value: className
-                })));
+                const selectMenu = new StringSelectMenuBuilder()
+                    .setCustomId('select_class')
+                    .setPlaceholder(`Wybierz swoją klasę ${year}`)
+                    .addOptions(selectedClasses.map(className => ({
+                        label: className,
+                        value: className
+                    })));
 
-            const row = new ActionRowBuilder().addComponents(selectMenu);
-            await interaction.reply({ content: `Wybierz swoją klasę z ${year} roku:`, components: [row] });
+                const row = new ActionRowBuilder().addComponents(selectMenu);
+                await interaction.reply({ content: `Wybierz swoją klasę z ${year} roku:`, components: [row], ephemeral: true });
 
-            if (!userChannels[guildId]) userChannels[guildId] = {};
-            userChannels[guildId][interaction.user.id] = interaction.channel.id;
-        } else if (commandName === 'sprawdz') {
-            if (!userClasses[guildId]) userClasses[guildId] = {};
-            const className = userClasses[guildId][interaction.user.id];
+                if (!userChannels[guildId]) userChannels[guildId] = {};
+                userChannels[guildId][interaction.user.id] = interaction.channel.id;
+            } else if (commandName === 'sprawdz') {
+                if (!userClasses[guildId]) userClasses[guildId] = {};
+                const className = userClasses[guildId][interaction.user.id];
 
-            if (!className) {
-                return interaction.reply('Nie masz wybranej klasy. Użyj komendy /klasa aby ją ustawić.');
-            }
+                if (!className) {
+                    return interaction.reply({ content: 'Nie masz wybranej klasy. Użyj komendy /klasa aby ją ustawić.', ephemeral: true });
+                }
 
-            const dateOption = options.getString('data');
-            const day = new Date();
+                const dateOption = options.getString('data');
+                const day = new Date();
 
-            if (dateOption === 'jutro') {
-                day.setDate(day.getDate() + 1);
-            }
+                if (dateOption === 'jutro') {
+                    day.setDate(day.getDate() + 1);
+                }
 
-            const substitutions = await fetchSubstitutionData(day, 'classes');
+                const substitutions = await fetchSubstitutionData(day, 'classes');
 
-            if (substitutions.length === 0) {
-                return interaction.reply(`Brak zastępstw na ${day.toISOString().slice(0, 10)}.`);
-            } else {
-                const filteredData = substitutions.filter(entry => entry.className === className);
-                if (filteredData.length === 0) {
-                    return interaction.reply(`Brak zastępstw dla klasy ${className} na ${day.toISOString().slice(0, 10)}.`);
+                if (substitutions.length === 0) {
+                    return interaction.reply({ content: `Brak zastępstw na ${day.toISOString().slice(0, 10)}.`, ephemeral: true });
                 } else {
-                    let response = filteredData.map(entry => {
-                        const classDetails = entry.rows.length ? entry.rows.join('\n') : 'Brak szczegółów.';
-                        return `Zastępstwa dla klasy: ${entry.className}\n${classDetails}`;
-                    }).join('\n\n');
+                    const filteredData = substitutions.filter(entry => entry.className === className);
+                    if (filteredData.length === 0) {
+                        return interaction.reply({ content: `Brak zastępstw dla klasy ${className} na ${day.toISOString().slice(0, 10)}.`, ephemeral: true });
+                    } else {
+                        let response = filteredData.map(entry => {
+                            const classDetails = entry.rows.length ? entry.rows.join('\n') : 'Brak szczegółów.';
+                            return `Zastępstwa dla klasy: ${entry.className}\n${classDetails}`;
+                        }).join('\n\n');
 
-                    await interaction.reply(response);
+                        await interaction.reply({ content: response, ephemeral: true });
+                    }
                 }
             }
+        } else if (interaction.isSelectMenu()) {
+            if (interaction.customId === 'select_class') {
+                await interaction.deferUpdate();
+
+                const className = interaction.values[0];
+                const guildId = interaction.guildId;
+
+                if (!userClasses[guildId]) userClasses[guildId] = {};
+                userClasses[guildId][interaction.user.id] = className;
+
+                await interaction.followUp({ content: `Zapamiętano klasę ${className} dla użytkownika ${interaction.user.username}.`, ephemeral: true });
+            }
         }
-    } else if (interaction.isSelectMenu()) {
-        if (interaction.customId === 'select_class') {
-            await interaction.deferUpdate();
-
-            const className = interaction.values[0];
-            const guildId = interaction.guildId;
-
-            if (!userClasses[guildId]) userClasses[guildId] = {};
-            userClasses[guildId][interaction.user.id] = className;
-
-            await interaction.followUp({ content: `Zapamiętano klasę ${className} dla użytkownika ${interaction.user.username}.`, ephemeral: true });
+    } catch (error) {
+        console.error('Błąd podczas obsługi interakcji:', error);
+        if (interaction.replied || interaction.deferred) {
+            await interaction.followUp({ content: 'Wystąpił błąd podczas przetwarzania Twojej prośby.', ephemeral: true });
+        } else {
+            await interaction.reply({ content: 'Wystąpił błąd podczas przetwarzania Twojej prośby.', ephemeral: true });
         }
     }
 });
@@ -218,7 +253,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
 client.once(Events.ClientReady, () => {
     clientId = client.user.id;
     registerCommands();
-    console.log('Bot gotowy do działania!');
+    console.log('Bot jest online i gotowy do działania!');
 });
 
-client.login();
+client.login(token);
