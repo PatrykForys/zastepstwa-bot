@@ -2,11 +2,12 @@ import { Client, GatewayIntentBits, ActionRowBuilder, StringSelectMenuBuilder, E
 import fetch from 'node-fetch';
 import { JSDOM } from 'jsdom';
 
+
 const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent] });
 
-const userClasses = {};
+const userClasses = {}; 
 const userChannels = {}; 
-let lastSentDate = {};
+let lastSentDate = {}; 
 let clientId;
 const token = "";
 
@@ -118,7 +119,7 @@ const checkSubstitutions = async () => {
 
         client.guilds.cache.forEach(guild => {
             if (!lastSentDate[guild.id] || lastSentDate[guild.id] !== today) {
-                for (const userId in userClasses[guild.id] || {}) {
+                for (const userId in (userClasses[guild.id] || {})) {
                     const className = userClasses[guild.id][userId];
                     const channelId = userChannels[guild.id][userId];
 
@@ -127,40 +128,38 @@ const checkSubstitutions = async () => {
                     const filteredData = substitutions.filter(entry => entry.className === className);
 
                     const channel = client.channels.cache.get(channelId);
+                    if (!channel) {
+                        console.error(`Nie znaleziono kanału o ID: ${channelId} dla serwera: ${guild.id}`);
+                        continue;
+                    }
+
                     if (filteredData.length > 0) {
                         let message = `Zastępstwa dla klasy **${className}** na dzisiaj:\n`;
                         filteredData.forEach(entry => {
                             message += `${entry.rows.join('\n')}\n\n`;
                         });
 
-                        if (channel) {
-                            channel.send(message)
-                                .then(() => {
-                                    lastSentDate[guild.id] = today;
-                                })
-                                .catch(error => {
-                                    console.error(`Błąd podczas wysyłania wiadomości do kanału ${channelId}:`, error);
-                                });
-                        }
+                        channel.send(message)
+                            .then(() => {
+                                lastSentDate[guild.id] = today;
+                            })
+                            .catch(error => {
+                                console.error(`Błąd podczas wysyłania wiadomości do kanału ${channelId}:`, error);
+                            });
                     } else {
-                        if (channel) {
-                            channel.send(`Brak zastępstw dla klasy ${className} na ${day.toISOString().slice(0, 10)}.`)
-                                .then(() => {
-                                    lastSentDate[guild.id] = today;
-                                })
-                                .catch(error => {
-                                    console.error(`Błąd podczas wysyłania wiadomości do kanału ${channelId}:`, error);
-                                });
-                        }
+                        channel.send(`Brak zastępstw dla klasy ${className} na ${day.toISOString().slice(0, 10)}.`)
+                            .then(() => {
+                                lastSentDate[guild.id] = today;
+                            })
+                            .catch(error => {
+                                console.error(`Błąd podczas wysyłania wiadomości do kanału ${channelId}:`, error);
+                            });
                     }
                 }
-            } else {
             }
         });
-    } else {
     }
 };
-
 
 client.on('error', error => {
     console.error('Błąd klienta Discord:', error);
@@ -195,11 +194,13 @@ client.on(Events.InteractionCreate, async (interaction) => {
                 if (!userChannels[guildId]) userChannels[guildId] = {};
                 userChannels[guildId][interaction.user.id] = interaction.channel.id;
             } else if (commandName === 'sprawdz') {
+                await interaction.deferReply({ ephemeral: true });
+
                 if (!userClasses[guildId]) userClasses[guildId] = {};
                 const className = userClasses[guildId][interaction.user.id];
 
                 if (!className) {
-                    return interaction.reply({ content: 'Nie masz wybranej klasy. Użyj komendy /klasa aby ją ustawić.', ephemeral: true });
+                    return interaction.editReply('Nie masz wybranej klasy. Użyj komendy /klasa aby ją ustawić.');
                 }
 
                 const dateOption = options.getString('data');
@@ -212,18 +213,18 @@ client.on(Events.InteractionCreate, async (interaction) => {
                 const substitutions = await fetchSubstitutionData(day, 'classes');
 
                 if (substitutions.length === 0) {
-                    return interaction.reply({ content: `Brak zastępstw na ${day.toISOString().slice(0, 10)}.`, ephemeral: true });
+                    return interaction.editReply(`Brak zastępstw na ${day.toISOString().slice(0, 10)}.`);
                 } else {
                     const filteredData = substitutions.filter(entry => entry.className === className);
                     if (filteredData.length === 0) {
-                        return interaction.reply({ content: `Brak zastępstw dla klasy ${className} na ${day.toISOString().slice(0, 10)}.`, ephemeral: true });
+                        return interaction.editReply(`Brak zastępstw dla klasy ${className} na ${day.toISOString().slice(0, 10)}.`);
                     } else {
                         let response = filteredData.map(entry => {
                             const classDetails = entry.rows.length ? entry.rows.join('\n') : 'Brak szczegółów.';
                             return `Zastępstwa dla klasy: ${entry.className}\n${classDetails}`;
                         }).join('\n\n');
 
-                        await interaction.reply({ content: response, ephemeral: true });
+                        return interaction.editReply(response);
                     }
                 }
             }
